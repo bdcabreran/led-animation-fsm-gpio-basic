@@ -30,11 +30,9 @@ void print_startup_message(void)
 
 /*example */
 led_pin_port led2 =
-{
-	.pin = LD2_Pin,
-	.port = LD2_GPIO_Port
-};
-
+    {
+        .pin = LD2_Pin,
+        .port = LD2_GPIO_Port};
 
 led_animation_t breath =
     {
