@@ -52,8 +52,8 @@ void led_animation_breath(void)
     static int fade_amount = 1;
     breath.brightness = (breath.brightness + fade_amount) % LED_MAX_BRIGHTNESS;
 
-    if (breath.brightness >= (LED_MAX_BRIGHTNESS-1) || breath.brightness <= 0)
-      fade_amount = ~fade_amount;
+    if (breath.brightness >= (LED_MAX_BRIGHTNESS - 1) || breath.brightness <= 0)
+      fade_amount *= -1;
 
     led_set_brightness(&led_animation, breath.brightness);
   }
