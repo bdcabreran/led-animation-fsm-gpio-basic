@@ -11,6 +11,21 @@
 
 led_animation_fsm_t led_animation;
 
+/**@brief Enable/Disable debug messages */
+#define LED_ANIMATION_FSM_DBG 1
+#define LED_ANIMATION_TAG "led animation : "
+
+/**@brief uart debug function for server comm operations  */
+#if LED_ANIMATION_FSM_DBG
+#define led_animation_dbg(format, ...) printf(LED_ANIMATION_TAG format, ##__VA_ARGS__)
+#else
+#define led_animation_dbg(format, ...) \
+    do                                    \
+    { /* Do nothing */                    \
+    } while (0)
+#endif
+
+
 static bool exec_proc_on_react(led_animation_fsm_t *handle);
 static void exit_action_exec_proc(led_animation_fsm_t *handle);
 static bool idle_proc_on_react(led_animation_fsm_t *handle);
@@ -28,6 +43,7 @@ static void led_animation_set_next_state(led_animation_fsm_t *handle, led_animat
 
 static void enter_seq_idle_proc(led_animation_fsm_t *handle)
 {
+    led_animation_dbg("enter seq \t[ idle proc ]\n");
     led_animation_set_next_state(handle, st_led_animation_idle);
     /*start led off*/
     HAL_GPIO_WritePin(handle->iface.gpio.port, handle->iface.gpio.pin, GPIO_PIN_RESET);
@@ -35,12 +51,15 @@ static void enter_seq_idle_proc(led_animation_fsm_t *handle)
 
 static void enter_seq_exec_proc(led_animation_fsm_t *handle)
 {
+    led_animation_dbg("enter seq \t[ execution proc ]\n");
     led_animation_set_next_state(handle, st_led_animation_exec);
     entry_action_exec_proc(handle);
 }
 
 static void entry_action_exec_proc(led_animation_fsm_t *handle)
 {
+    led_animation_dbg("entry act \t[ execution proc -> start timers, led on ]\n");
+
     time_event_start(&handle->event.time.exec_time_expired, handle->iface.animation.execution_time);
     time_event_start(&handle->event.time.period_expired, handle->iface.animation.period);
     time_event_start(&handle->event.time.time_on_expired, handle->iface.animation.time_on);
@@ -85,6 +104,7 @@ uint8_t led_set_brightness(led_animation_fsm_t *handle, uint8_t brightness)
 {
     if(brightness <= LED_MAX_BRIGHTNESS)
     {
+        //led_animation_dbg("func \t[ update brightness ]\n");
         handle->iface.animation.brightness = brightness;
         return 1;
     }
@@ -94,6 +114,7 @@ uint8_t led_set_brightness(led_animation_fsm_t *handle, uint8_t brightness)
 
 void led_animation_stop(led_animation_fsm_t *handle)
 {
+    led_animation_dbg("func \t[ animation stop ]\n");
     handle->event.name = ev_led_animation_stop;
 }
 
@@ -117,6 +138,8 @@ static bool idle_proc_on_react(led_animation_fsm_t *handle)
 
 static void exit_action_exec_proc(led_animation_fsm_t *handle)
 {
+    led_animation_dbg("exit act \t[ execution proc -> stop timers, led off ]\n");
+
     /*stop timers*/
     time_event_stop(&handle->event.time.exec_time_expired);
     time_event_stop(&handle->event.time.period_expired);
@@ -125,6 +148,9 @@ static void exit_action_exec_proc(led_animation_fsm_t *handle)
     /*bright timers*/
     time_event_stop(&handle->event.time.bright_refresh);
     time_event_stop(&handle->event.time.bright_amount);
+
+    /*start led off*/
+    HAL_GPIO_WritePin(handle->iface.gpio.port, handle->iface.gpio.pin, GPIO_PIN_RESET);
 }
 
 /** Update Brightness 
@@ -200,7 +226,10 @@ static bool exec_proc_on_react(led_animation_fsm_t *handle)
             enter_seq_exec_proc(handle);
         }
         else
+        {
+        	exit_action_exec_proc(handle);
         	enter_seq_idle_proc(handle);
+        }
     }
     else
         did_transition = false;
