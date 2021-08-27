@@ -9,9 +9,9 @@
 #include "peripherals_init.h"
 #include "host_comm_tx_fsm.h"
 #include "host_comm_rx_fsm.h"
+#include "led_animation.h"
 #include "stdio.h"
-#include "tdd.h"
-
+#include "tdd.h" 
 #include "uart_driver.h"
 
 #define HEARTBEAT_PERIOD_MS (200)
@@ -28,8 +28,39 @@ void print_startup_message(void)
 	printf("**************************************\r\n");
 }
 
-uint8_t rx_buff[1024];
-uint8_t tx_buff[512];
+/*example */
+led_pin_port led2 =
+{
+	.pin = LD2_Pin,
+	.port = LD2_GPIO_Port
+};
+
+
+led_animation_t breath =
+    {
+        .brightness = 0,
+        .execution_time = 30000,
+        .period = 100,
+        .time_on = 100};
+
+void led_animation_breath(void)
+{
+  static uint32_t millis_counter = 0;
+  if (HAL_GetTick() - millis_counter > 30)
+  {
+    millis_counter = HAL_GetTick();
+
+    //-------- Update every 30ms ---------//
+    static int fade_amount = 1;
+    breath.brightness = (breath.brightness + fade_amount) % LED_MAX_BRIGHTNESS;
+
+    if (breath.brightness >= (LED_MAX_BRIGHTNESS-1) || breath.brightness <= 0)
+      fade_amount = ~fade_amount;
+
+    led_set_brightness(&led_animation, breath.brightness);
+  }
+}
+
 
 /**
   * @brief  The application entry point.
@@ -45,26 +76,17 @@ int main(void)
   host_comm_tx_fsm_init(&host_comm_tx_handle);
   host_comm_rx_fsm_init(&host_comm_rx_handle);
 
-  /* run tdd #0*/
-  tx_comm_test_0();
+  /* example */
+  led_animation_init(&led_animation, &led2);
+  led_animation_start(&led_animation, &breath);
 
   /* Infinite loop */
   while (1)
   {
     host_comm_tx_fsm_run(&host_comm_tx_handle);
     host_comm_rx_fsm_run(&host_comm_rx_handle);
-
-    heartbeat_handler();
-  }
-}
-
-void heartbeat_handler(void)
-{
-  static uint32_t last_tick = 0;
-  if (HAL_GetTick() - last_tick > HEARTBEAT_PERIOD_MS)
-  {
-    last_tick = HAL_GetTick();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    led_animation_run(&led_animation);
+    led_animation_breath();
   }
 }
 
